@@ -179,17 +179,12 @@ def blit_time_song_window(screen, song_path):
     blit_text(screen, time, 24, 190, 246, WHITE, GRAY, "right")
 
 
-def draw_line_separations_song_window(screen, color):
+def draw_lines_song_window(screen, color):
     pygame.draw.line(screen, color, (0, 75), (WIDTH, 75), 2)
     pygame.draw.line(screen, color, (0, 150), (WIDTH, 150), 2)
     pygame.draw.line(screen, color, (225, 0), (225, 150), 2)
     pygame.draw.line(screen, color, (450, 0), (450, 150), 2)
     pygame.draw.line(screen, color, (200, 150), (200, HEIGHT), 2)
-
-
-def lyrics_window(song_path):
-    print("Not yet implemented.")
-    return
 
 
 def get_next_song_path(curr_song_path, shuffle, loop) -> str:
@@ -234,9 +229,30 @@ def get_previous_song_path(curr_song_path, shuffle) -> str:
     return os.path.join(dir, songs[curr_song_index - 1])
 
 
-def rename_song():
-    print("Not yet implemented")
-    return
+def rename_song(song_path):
+    curr_song_name = os.path.basename(song_path)
+    songs_path = os.path.dirname(song_path)
+    display_song_name = ""
+    if len(curr_song_name) > 20:
+        display_song_name = curr_song_name[:17] + "..."
+    else:
+        display_song_name = curr_song_name
+    text_for_input = curr_song_name
+    while True:
+        new_song_name = text_input_window(
+            f'Rename "{display_song_name}"', text_for_input
+        )
+        if new_song_name not in os.listdir(songs_path):
+            os.rename(song_path, os.path.join(songs_path, new_song_name))
+            print("Song successfully renamed.")
+            break
+        elif new_song_name == curr_song_name:
+            print("Renaming cancelled.")
+            break
+        else:
+            text_for_input = new_song_name
+            print("There is already a song with this name.")
+    return os.path.join(songs_path, new_song_name)
 
 
 def search_song():
@@ -300,9 +316,9 @@ def get_total_time(song_path):
 
 
 def song_window(song_path, shuffle: bool, loop: bool, paused: bool):
-    pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("SpotiPy")
+    caption = "SpotiPy"
+    pygame.display.set_caption(caption)
     clock = pygame.time.Clock()
 
     thumbnail = load_thumbnail(song_path)
@@ -346,7 +362,9 @@ def song_window(song_path, shuffle: bool, loop: bool, paused: bool):
                     play_song(song_path, paused)
                 # rename song
                 if event.key == pygame.K_r:
-                    rename_song(song_path)
+                    song_path = rename_song(song_path)
+                    title = os.path.basename(song_path)
+                    pygame.display.set_caption(caption)
                 # search song
                 if event.key == pygame.K_s:
                     search_song()
@@ -379,7 +397,7 @@ def song_window(song_path, shuffle: bool, loop: bool, paused: bool):
         blit_icon_keys_song_window(screen)
         blit_title_song_window(screen, title)
         blit_time_song_window(screen, song_path)
-        draw_line_separations_song_window(screen, WHITE)
+        draw_lines_song_window(screen, WHITE)
 
         if not pygame.mixer.music.get_busy() and not paused:
             print("Song finished playing.")
@@ -390,18 +408,112 @@ def song_window(song_path, shuffle: bool, loop: bool, paused: bool):
 
         pygame.display.update()
         clock.tick(60)
-    pygame.quit()
     return
 
 
+def lyrics_window(song_path):
+    print("Not yet implemented.")
+    return
+
+
+def draw_lines_text_input_window(screen, color):
+    pygame.draw.line(
+        screen, color, (20, HEIGHT // 2 - 40), (WIDTH - 20, HEIGHT // 2 - 40), 2
+    )
+    pygame.draw.line(
+        screen, color, (20, HEIGHT // 2 + 40), (WIDTH - 20, HEIGHT // 2 + 40), 2
+    )
+    pygame.draw.line(screen, color, (20, HEIGHT // 2 - 40), (20, HEIGHT // 2 + 40), 2)
+    pygame.draw.line(
+        screen, color, (WIDTH - 20, HEIGHT // 2 - 40), (WIDTH - 20, HEIGHT // 2 + 40), 2
+    )
+
+
+def blit_text_text_input_window(screen, text):
+    font_size = 28
+    font = pygame.font.Font(size=font_size)
+    text_surface = font.render(text, True, WHITE, None)
+    if text_surface.get_width() <= 600:
+        blit_text(
+            screen, text, font_size, WIDTH // 2, HEIGHT // 2, WHITE, align="center"
+        )
+    else:
+        middle = len(text) // 2
+        split_index = text.rfind(" ", 0, middle)
+        text_first_half = text[:split_index].strip()
+        text_second_half = text[split_index:].strip()
+
+        blit_text(
+            screen,
+            text_first_half,
+            font_size,
+            WIDTH // 2,
+            HEIGHT // 2 - 13,
+            WHITE,
+            align="center",
+        )
+        blit_text(
+            screen,
+            text_second_half,
+            font_size,
+            WIDTH // 2,
+            HEIGHT // 2 + 13,
+            WHITE,
+            align="center",
+        )
+    return
+
+
+def text_input_window(caption: str, text: str = "") -> str:
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption(caption)
+    clock = pygame.time.Clock()
+
+    init_text = text
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    if text:
+                        text = ""
+                    else:
+                        running = False
+                elif event.key == pygame.K_BACKSPACE:
+                    text = text[:-1]
+                elif event.key == pygame.K_RETURN:
+                    return text
+                elif event.unicode:
+                    if len(text) <= 120:
+                        text += event.unicode
+            if event.type == pygame.QUIT:
+                running = False
+        screen.fill(GRAY)
+        blit_text_text_input_window(screen, text)
+        draw_lines_text_input_window(screen, WHITE)
+
+        pygame.display.update()
+        clock.tick(60)
+    return init_text
+
+
 if __name__ == "__main__":
+    pygame.init()
+
+    # text_input_window(
+    #    "trr",
+    #    "LAKSHD FLAKSJDHF ALKDSJF HALKJD HFLKAJDS FLKADSJ HFLKAJDS HFLKASDJ HFLKASHDF ALKDS FHLKSADJHF",
+    # )
+
     files = os.listdir("songs/")
     files.sort()
     some_song_path = os.path.join("songs/", files[0])
-    song_window(some_song_path, False, False, False)
+    song_window(some_song_path, False, False, True)
 
     # download_song_from_querry("Dawid Podsiadło - Let You Down (Lyrics) cyberpunk")
     # download_song_from_url("https://www.youtube.com/watch?v=o94gVQeP6PQ")
     # download_song_from_url("https://www.youtube.com/watch?v=6jrllECbLfA")
     # download_song_from_url("https://www.youtube.com/watch?v=ll7Su_BCNCA")
     # download_song_from_url("https://www.youtube.com/watch?v=0YT3NTiZKDw")
+
+    pygame.quit()
