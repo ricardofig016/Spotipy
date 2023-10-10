@@ -1,4 +1,4 @@
-import os, subprocess, random, pygame, pytube, pydub, requests, shutil, bs4
+import os, subprocess, random, pygame, pytube, pydub, requests, bs4
 
 WIDTH = 750
 HEIGHT = 262
@@ -13,8 +13,9 @@ stamp_sec = 0
 
 def convert_mp4_to_wav(input_file, output_wav_file):
     # Run FFmpeg command to convert audio to WAV
-    command = f"ffmpeg -i '{input_file}' -q:a 0 -map a '{output_wav_file}'"
+    command = f'ffmpeg -i "{input_file}" -q:a 0 -map a "{output_wav_file}"'
     subprocess.run(command, shell=True)
+    print("Audio converted from mp4 to wav.")
     return
 
 
@@ -22,6 +23,7 @@ def normalize_audio(song_path):
     audio = pydub.AudioSegment.from_wav(song_path)
     normalized_audio = audio.normalize()
     normalized_audio.export(song_path, format="wav")
+    print("Audio normalized.")
     return
 
 
@@ -40,7 +42,6 @@ def download_song_from_url(url) -> None:
     best_audio_stream = audio_streams.order_by("abr").desc().first()
 
     songs_path = "songs/"
-    print(video.title)
     song_name = video.title.replace("/", "-")
     print(song_name)
     folder_path = os.path.join(songs_path, song_name)
@@ -187,7 +188,34 @@ def draw_lines_song_window(screen, color):
     pygame.draw.line(screen, color, (200, 150), (200, HEIGHT), 2)
 
 
-def get_next_song_path(curr_song_path, shuffle, loop) -> str:
+def get_previous_song_path(curr_song_path, shuffle, search) -> str:
+    global stamp_sec
+    stamp_sec = 0
+    curr_song = os.path.basename(curr_song_path)
+    dir = os.path.dirname(curr_song_path)
+    if shuffle:
+        global shuffled_pl
+        if not shuffled_pl:
+            shuffled_pl = os.listdir(dir)
+            random.shuffle(shuffled_pl)
+        songs = shuffled_pl
+    else:
+        songs = os.listdir(dir)
+        songs.sort()
+    if search:
+        songs = [song for song in songs if search in song]
+    if not songs:
+        return curr_song_path
+    if curr_song in songs:
+        curr_song_index = songs.index(curr_song)
+    else:
+        curr_song_index = len(songs) - 1
+    if curr_song_index == 0:
+        return os.path.join(dir, songs[len(songs) - 1])
+    return os.path.join(dir, songs[curr_song_index - 1])
+
+
+def get_next_song_path(curr_song_path, shuffle, loop, search) -> str:
     global stamp_sec
     stamp_sec = 0
     if loop:
@@ -203,30 +231,17 @@ def get_next_song_path(curr_song_path, shuffle, loop) -> str:
     else:
         songs = os.listdir(dir)
         songs.sort()
-    curr_song_index = songs.index(curr_song)
+    if search:
+        songs = [song for song in songs if search in song]
+    if not songs:
+        return curr_song_path
+    if curr_song in songs:
+        curr_song_index = songs.index(curr_song)
+    else:
+        curr_song_index = len(songs) - 1
     if curr_song_index == len(songs) - 1:
         return os.path.join(dir, songs[0])
     return os.path.join(dir, songs[curr_song_index + 1])
-
-
-def get_previous_song_path(curr_song_path, shuffle) -> str:
-    global stamp_sec
-    stamp_sec = 0
-    curr_song = os.path.basename(curr_song_path)
-    dir = os.path.dirname(curr_song_path)
-    if shuffle:
-        global shuffled_pl
-        if not shuffled_pl:
-            shuffled_pl = os.listdir(dir)
-            random.shuffle(shuffled_pl)
-        songs = shuffled_pl
-    else:
-        songs = os.listdir(dir)
-        songs.sort()
-    curr_song_index = songs.index(curr_song)
-    if curr_song_index == 0:
-        return os.path.join(dir, songs[len(songs) - 1])
-    return os.path.join(dir, songs[curr_song_index - 1])
 
 
 def rename_song(song_path):
@@ -261,7 +276,14 @@ def search_song():
 
 
 def add_song():
-    print("Not yet implemented")
+    input = text_input_window("Add song")
+    prefix = "https://www.youtube.com/watch"
+    if not input:
+        return
+    if input.startswith(prefix):
+        download_song_from_url(input)
+    else:
+        download_song_from_querry(input)
     return
 
 
@@ -323,6 +345,7 @@ def song_window(song_path, shuffle: bool, loop: bool, paused: bool):
 
     thumbnail = load_thumbnail(song_path)
     title = os.path.basename(song_path)
+    search = ""
     play_song(song_path, paused)
 
     running = True
@@ -335,31 +358,37 @@ def song_window(song_path, shuffle: bool, loop: bool, paused: bool):
                 # toggle shuffle
                 if event.key == pygame.K_x:
                     shuffle = not shuffle
+                    print("Shuffle toggled")
                 # toggle loop
                 if event.key == pygame.K_l:
                     loop = not loop
+                    print("Loop toggled")
                 # go to lyrics window
                 if event.key == pygame.K_DOWN:
                     lyrics_window(song_path)
                 # previous song
                 if event.key == pygame.K_LEFT:
-                    song_path = get_previous_song_path(song_path, shuffle)
+                    song_path = get_previous_song_path(song_path, shuffle, search)
                     thumbnail = load_thumbnail(song_path)
                     title = os.path.basename(song_path)
                     play_song(song_path, paused)
+                    print("Song backtracked")
                 # pause / unpause
                 if event.key == pygame.K_p or event.key == pygame.K_SPACE:
                     paused = not paused
                     if paused:
                         pygame.mixer.music.pause()
+                        print("Music paused")
                     else:
                         pygame.mixer.music.unpause()
+                        print("Music unpaused")
                 # next song
                 if event.key == pygame.K_RIGHT:
-                    song_path = get_next_song_path(song_path, shuffle, loop)
+                    song_path = get_next_song_path(song_path, shuffle, loop, search)
                     thumbnail = load_thumbnail(song_path)
                     title = os.path.basename(song_path)
                     play_song(song_path, paused)
+                    print("Song skipped")
                 # rename song
                 if event.key == pygame.K_r:
                     song_path = rename_song(song_path)
@@ -371,6 +400,7 @@ def song_window(song_path, shuffle: bool, loop: bool, paused: bool):
                 # add song
                 if event.key == pygame.K_a or event.key == pygame.K_PLUS:
                     add_song()
+                    pygame.display.set_caption(caption)
                 # delete song
                 if event.key == pygame.K_d or event.key == pygame.K_MINUS:
                     delete_song()
@@ -401,7 +431,7 @@ def song_window(song_path, shuffle: bool, loop: bool, paused: bool):
 
         if not pygame.mixer.music.get_busy() and not paused:
             print("Song finished playing.")
-            song_path = get_next_song_path(song_path, shuffle, loop)
+            song_path = get_next_song_path(song_path, shuffle, loop, search)
             thumbnail = load_thumbnail(song_path)
             title = os.path.basename(song_path)
             play_song(song_path, paused)
@@ -464,6 +494,13 @@ def blit_text_text_input_window(screen, text):
     return
 
 
+def get_clipboard_text():
+    result = subprocess.run(
+        ["xclip", "-selection", "clipboard", "-o"], stdout=subprocess.PIPE
+    )
+    return result.stdout.decode("utf-8").strip()
+
+
 def text_input_window(caption: str, text: str = "") -> str:
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption(caption)
@@ -482,12 +519,22 @@ def text_input_window(caption: str, text: str = "") -> str:
                 elif event.key == pygame.K_BACKSPACE:
                     text = text[:-1]
                 elif event.key == pygame.K_RETURN:
-                    return text
+                    if text:
+                        return text
+                    else:
+                        running = False
+                elif (
+                    event.key == pygame.K_v and pygame.key.get_mods() & pygame.KMOD_CTRL
+                ):
+                    clipboard_text = get_clipboard_text()
+                    if clipboard_text and len(clipboard_text) + len(text) <= 120:
+                        text += clipboard_text
                 elif event.unicode:
                     if len(text) <= 120:
                         text += event.unicode
             if event.type == pygame.QUIT:
                 running = False
+
         screen.fill(GRAY)
         blit_text_text_input_window(screen, text)
         draw_lines_text_input_window(screen, WHITE)
@@ -497,18 +544,111 @@ def text_input_window(caption: str, text: str = "") -> str:
     return init_text
 
 
+def blit_question_choice_input_window(screen, question):
+    font_size = 32
+    font = pygame.font.Font(size=font_size)
+    text_surface = font.render(question, True, WHITE, None)
+    if text_surface.get_width() <= 650:
+        blit_text(
+            screen,
+            question,
+            font_size,
+            0.5 * WIDTH,
+            0.3 * HEIGHT,
+            WHITE,
+            align="center",
+        )
+    else:
+        middle = len(question) // 2
+        split_index = question.rfind(" ", 0, middle)
+        text_first_half = question[:split_index].strip()
+        text_second_half = question[split_index:].strip()
+
+        blit_text(
+            screen,
+            text_first_half,
+            font_size,
+            0.5 * WIDTH,
+            0.3 * HEIGHT - 15,
+            WHITE,
+            align="center",
+        )
+        blit_text(
+            screen,
+            text_second_half,
+            font_size,
+            0.5 * WIDTH,
+            0.3 * HEIGHT + 15,
+            WHITE,
+            align="center",
+        )
+    return
+
+
+def blit_options_choice_input_window(screen, opt1, opt2):
+    font_size = 32
+    font = pygame.font.Font(size=font_size)
+    opts = [opt1, opt2]
+
+    for i in range(2):
+        opt = opts[i] + f" ({i+1})"
+        text_surface = font.render(opt, True, WHITE, None)
+        if text_surface.get_width() > 300:
+            opt = "Error: opt is too big."
+        width = 0.3 * WIDTH
+        if i == 1:
+            width = WIDTH - width
+        blit_text(
+            screen,
+            opt,
+            font_size,
+            width,
+            0.7 * HEIGHT,
+            WHITE,
+            align="center",
+        )
+    return
+
+
+def choice_input_window(
+    caption: str, question: str, opt1: str = "yes", opt2: str = "no"
+) -> str:
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption(caption)
+    clock = pygame.time.Clock()
+
+    ans = ""
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    running = False
+                elif event.key == pygame.K_0:
+                    ans = opt1
+                    running = False
+                elif event.key == pygame.K_1:
+                    ans = opt2
+                    running = False
+            if event.type == pygame.QUIT:
+                running = False
+
+        screen.fill(GRAY)
+        blit_question_choice_input_window(screen, question)
+        blit_options_choice_input_window(screen, opt1, opt2)
+
+        pygame.display.update()
+        clock.tick(60)
+    return ans
+
+
 if __name__ == "__main__":
     pygame.init()
-
-    # text_input_window(
-    #    "trr",
-    #    "LAKSHD FLAKSJDHF ALKDSJF HALKJD HFLKAJDS FLKADSJ HFLKAJDS HFLKASDJ HFLKASHDF ALKDS FHLKSADJHF",
-    # )
 
     files = os.listdir("songs/")
     files.sort()
     some_song_path = os.path.join("songs/", files[0])
-    song_window(some_song_path, False, False, True)
+    song_window(some_song_path, False, False, False)
 
     # download_song_from_querry("Dawid Podsiadło - Let You Down (Lyrics) cyberpunk")
     # download_song_from_url("https://www.youtube.com/watch?v=o94gVQeP6PQ")
