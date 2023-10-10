@@ -188,6 +188,14 @@ def draw_lines_song_window(screen, color):
     pygame.draw.line(screen, color, (200, 150), (200, HEIGHT), 2)
 
 
+def shuffle_pl():
+    dir = "songs/"
+    global shuffled_pl
+    shuffled_pl = os.listdir(dir)
+    random.shuffle(shuffled_pl)
+    return
+
+
 def get_previous_song_path(curr_song_path, shuffle, search) -> str:
     global stamp_sec
     stamp_sec = 0
@@ -196,8 +204,7 @@ def get_previous_song_path(curr_song_path, shuffle, search) -> str:
     if shuffle:
         global shuffled_pl
         if not shuffled_pl:
-            shuffled_pl = os.listdir(dir)
-            random.shuffle(shuffled_pl)
+            shuffle_pl()
         songs = shuffled_pl
     else:
         songs = os.listdir(dir)
@@ -225,8 +232,7 @@ def get_next_song_path(curr_song_path, shuffle, loop, search) -> str:
     if shuffle:
         global shuffled_pl
         if not shuffled_pl:
-            shuffled_pl = os.listdir(dir)
-            random.shuffle(shuffled_pl)
+            shuffle_pl()
         songs = shuffled_pl
     else:
         songs = os.listdir(dir)
@@ -394,12 +400,14 @@ def song_window(song_path, shuffle: bool, loop: bool, paused: bool):
                     song_path = rename_song(song_path)
                     title = os.path.basename(song_path)
                     pygame.display.set_caption(caption)
+                    shuffle_pl()
                 # search song
                 if event.key == pygame.K_s:
                     search_song()
                 # add song
                 if event.key == pygame.K_a or event.key == pygame.K_PLUS:
                     add_song()
+                    shuffle_pl()
                     pygame.display.set_caption(caption)
                 # delete song
                 if event.key == pygame.K_d or event.key == pygame.K_MINUS:
