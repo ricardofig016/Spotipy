@@ -210,7 +210,10 @@ def get_previous_song_path(curr_song_path, shuffle, search) -> str:
         songs = os.listdir(dir)
         songs.sort()
     if search:
-        songs = [song for song in songs if search in song]
+        songs_lower = [song.lower() for song in songs]
+        songs = [
+            song for lower_song, song in zip(songs_lower, songs) if search in lower_song
+        ]
     if not songs:
         return curr_song_path
     if curr_song in songs:
@@ -238,7 +241,10 @@ def get_next_song_path(curr_song_path, shuffle, loop, search) -> str:
         songs = os.listdir(dir)
         songs.sort()
     if search:
-        songs = [song for song in songs if search in song]
+        songs_lower = [song.lower() for song in songs]
+        songs = [
+            song for lower_song, song in zip(songs_lower, songs) if search in lower_song
+        ]
     if not songs:
         return curr_song_path
     if curr_song in songs:
@@ -274,11 +280,6 @@ def rename_song(song_path):
             text_for_input = new_song_name
             print("There is already a song with this name.")
     return os.path.join(songs_path, new_song_name)
-
-
-def search_song():
-    print("Not yet implemented")
-    return
 
 
 def add_song():
@@ -403,7 +404,14 @@ def song_window(song_path, shuffle: bool, loop: bool, paused: bool):
                     shuffle_pl()
                 # search song
                 if event.key == pygame.K_s:
-                    search_song()
+                    search_result = text_input_window("Search")
+                    search = search_result.lower()
+                    print("Search processed")
+                    song_path = get_next_song_path(song_path, shuffle, loop, search)
+                    thumbnail = load_thumbnail(song_path)
+                    title = os.path.basename(song_path)
+                    pygame.display.set_caption(caption)
+                    play_song(song_path, paused)
                 # add song
                 if event.key == pygame.K_a or event.key == pygame.K_PLUS:
                     add_song()
@@ -655,6 +663,10 @@ if __name__ == "__main__":
 
     files = os.listdir("songs/")
     files.sort()
+    print("\nSongs:")
+    for file in files:
+        print(file)
+    print()
     some_song_path = os.path.join("songs/", files[0])
     song_window(some_song_path, False, False, False)
 
