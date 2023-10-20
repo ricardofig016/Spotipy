@@ -1,4 +1,4 @@
-import os, subprocess, random, pygame, pytube, pydub, requests
+import os, subprocess, shutil, random, pygame, pytube, pydub, requests
 
 WIDTH = 750
 HEIGHT = 262
@@ -15,7 +15,7 @@ def convert_mp4_to_wav(input_file, output_wav_file):
     # Run FFmpeg command to convert audio to WAV
     command = f'ffmpeg -i "{input_file}" -q:a 0 -map a "{output_wav_file}"'
     subprocess.run(command, shell=True)
-    print("[Spotipy] Audio converted from mp4 to wav.")
+    print("[SpotiPy] Audio converted from mp4 to wav.")
     return
 
 
@@ -23,14 +23,14 @@ def normalize_audio(song_path):
     audio = pydub.AudioSegment.from_wav(song_path)
     normalized_audio = audio.normalize()
     normalized_audio.export(song_path, format="wav")
-    print("[Spotipy] Audio normalized.")
+    print("[SpotiPy] Audio normalized.")
     return
 
 
 def download_song_from_querry(query) -> None:
     search = pytube.Search(query)
     video = search.results[0]
-    print("[Spotipy] First result from querry:", video.watch_url)
+    print("[SpotiPy] First result from querry:", video.watch_url)
     download_song_from_url(video.watch_url)
     return
 
@@ -43,7 +43,7 @@ def download_song_from_url(url) -> None:
 
     songs_path = "songs/"
     song_name = video.title.replace("/", "-")
-    print("[Spotipy]", song_name)
+    print("[SpotiPy]", song_name)
     folder_path = os.path.join(songs_path, song_name)
     if not os.path.exists(folder_path):
         best_audio_stream.download(output_path=folder_path, filename="audio.mp4")
@@ -53,11 +53,11 @@ def download_song_from_url(url) -> None:
         )
         normalize_audio(os.path.join(folder_path, "audio.wav"))
         thumbnail_url = video.thumbnail_url
-        print("[Spotipy] Audio downloaded sucssessfully.")
+        print("[SpotiPy] Audio downloaded sucssessfully.")
         download_thumbnail(thumbnail_url, folder_path)
         download_lyrics()
     else:
-        print("[Spotipy] Song already exists.")
+        print("[SpotiPy] Song already exists.")
     return
 
 
@@ -68,15 +68,19 @@ def download_thumbnail(url, path):
         img_path = os.path.join(path, "thumbnail.jpg")
         with open(img_path, "wb") as file:
             file.write(response.content)
-            print("[Spotipy] Thumbnail image downloaded successfully.")
+            print("[SpotiPy] Thumbnail image downloaded successfully.")
     else:
-        print("[Spotipy] Failed to download thumbnail image.")
+        print("[SpotiPy] Failed to download thumbnail image.")
     return
 
 
 def download_lyrics():
-    print("[Spotipy] Not yet implemented.")
+    print("[SpotiPy] Not yet implemented.")
     return
+
+
+def download_default_song():
+    download_song_from_url("https://www.youtube.com/watch?v=9bZkp7q19f0")
 
 
 def load_thumbnail(song_path):
@@ -246,7 +250,7 @@ def get_next_song_path(curr_song_path, shuffle, loop, search) -> str:
             song for lower_song, song in zip(songs_lower, songs) if search in lower_song
         ]
         if not songs:
-            print(f'[Spotipy] No songs matched your search: "{search}"')
+            print(f'[SpotiPy] No songs matched your search: "{search}"')
     if not songs:
         return curr_song_path
     if curr_song in songs:
@@ -273,14 +277,14 @@ def rename_song(song_path):
         )
         if new_song_name not in os.listdir(songs_path):
             os.rename(song_path, os.path.join(songs_path, new_song_name))
-            print("[Spotipy] Song successfully renamed.")
+            print("[SpotiPy] Song successfully renamed.")
             break
         elif new_song_name == curr_song_name:
-            print("[Spotipy] Renaming cancelled.")
+            print("[SpotiPy] Renaming cancelled.")
             break
         else:
             text_for_input = new_song_name
-            print("[Spotipy] There is already a song with this name.")
+            print("[SpotiPy] There is already a song with this name.")
     return os.path.join(songs_path, new_song_name)
 
 
@@ -288,7 +292,7 @@ def add_song():
     input = text_input_window("Add song")
     prefix = "https://www.youtube.com/watch"
     if not input:
-        print("[Spotipy] Download cancelled")
+        print("[SpotiPy] Download cancelled")
         return
     if input.startswith(prefix):
         download_song_from_url(input)
@@ -297,9 +301,21 @@ def add_song():
     return
 
 
-def delete_song():
-    print("[Spotipy] Not yet implemented")
-    return
+def delete_song(song_path):
+    curr_song_name = os.path.basename(song_path)
+    display_song_name = ""
+    if len(curr_song_name) > 20:
+        display_song_name = curr_song_name[:17] + "..."
+    else:
+        display_song_name = curr_song_name
+    conf_question = f'Are you sure you want to delete "{display_song_name}"?'
+    conf = choice_input_window("Delete", conf_question, "yes", "no")
+    if conf == "yes":
+        shutil.rmtree(song_path)
+        print(f'[SpotiPy] Song was deleted: "{curr_song_name}"')
+        return True
+    print("[SpotiPy] Deletion cancelled")
+    return False
 
 
 def play_song(song_path, paused, start_time=0):
@@ -314,7 +330,7 @@ def play_song(song_path, paused, start_time=0):
 
 def set_elapsed_time(song_path, stamp, paused):
     if not stamp in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
-        print("[Spotipy] Invalid timestamp:", stamp)
+        print("[SpotiPy] Invalid timestamp:", stamp)
         return
 
     global stamp_sec
@@ -368,11 +384,11 @@ def song_window(song_path: str, shuffle: bool, loop: bool, paused: bool):
                 # toggle shuffle
                 if event.key == pygame.K_x:
                     shuffle = not shuffle
-                    print("[Spotipy] Shuffle toggled")
+                    print("[SpotiPy] Shuffle toggled")
                 # toggle loop
                 if event.key == pygame.K_l:
                     loop = not loop
-                    print("[Spotipy] Loop toggled")
+                    print("[SpotiPy] Loop toggled")
                 # go to lyrics window
                 if event.key == pygame.K_DOWN:
                     lyrics_window(song_path)
@@ -382,23 +398,23 @@ def song_window(song_path: str, shuffle: bool, loop: bool, paused: bool):
                     thumbnail = load_thumbnail(song_path)
                     title = os.path.basename(song_path)
                     play_song(song_path, paused)
-                    print("[Spotipy] Song backtracked")
+                    print("[SpotiPy] Song backtracked")
                 # pause / unpause
                 if event.key == pygame.K_p or event.key == pygame.K_SPACE:
                     paused = not paused
                     if paused:
                         pygame.mixer.music.pause()
-                        print("[Spotipy] Music paused")
+                        print("[SpotiPy] Music paused")
                     else:
                         pygame.mixer.music.unpause()
-                        print("[Spotipy] Music unpaused")
+                        print("[SpotiPy] Music unpaused")
                 # next song
                 if event.key == pygame.K_RIGHT:
                     song_path = get_next_song_path(song_path, shuffle, loop, search)
                     thumbnail = load_thumbnail(song_path)
                     title = os.path.basename(song_path)
                     play_song(song_path, paused)
-                    print("[Spotipy] Song skipped")
+                    print("[SpotiPy] Song skipped")
                 # rename song
                 if event.key == pygame.K_r:
                     song_path = rename_song(song_path)
@@ -411,14 +427,14 @@ def song_window(song_path: str, shuffle: bool, loop: bool, paused: bool):
                     pygame.display.set_caption(caption)
                     if search_result:
                         search = search_result.lower()
-                        print(f'[Spotipy] Search processed: "{search_result}"')
+                        print(f'[SpotiPy] Search processed: "{search_result}"')
                         song_path = get_next_song_path(song_path, shuffle, loop, search)
                         thumbnail = load_thumbnail(song_path)
                         title = os.path.basename(song_path)
                         play_song(song_path, paused)
                     else:
                         search = ""
-                        print("[Spotipy] Search cleared")
+                        print("[SpotiPy] Search cleared")
                 # add song
                 if event.key == pygame.K_a or event.key == pygame.K_PLUS:
                     add_song()
@@ -426,7 +442,14 @@ def song_window(song_path: str, shuffle: bool, loop: bool, paused: bool):
                     pygame.display.set_caption(caption)
                 # delete song
                 if event.key == pygame.K_d or event.key == pygame.K_MINUS:
-                    delete_song()
+                    if delete_song(song_path):
+                        if (len(os.listdir("songs/"))) == 0:
+                            download_default_song()
+                        song_path = get_next_song_path(song_path, shuffle, loop, "")
+                        thumbnail = load_thumbnail(song_path)
+                        title = os.path.basename(song_path)
+                        play_song(song_path, paused)
+                    pygame.display.set_caption(caption)
                 # go to timestamp
                 if event.key in [
                     pygame.K_0,
@@ -453,7 +476,7 @@ def song_window(song_path: str, shuffle: bool, loop: bool, paused: bool):
         draw_lines_song_window(screen, WHITE)
 
         if not pygame.mixer.music.get_busy() and not paused:
-            print("[Spotipy] Song finished playing.")
+            print("[SpotiPy] Song finished playing.")
             song_path = get_next_song_path(song_path, shuffle, loop, search)
             thumbnail = load_thumbnail(song_path)
             title = os.path.basename(song_path)
@@ -465,7 +488,7 @@ def song_window(song_path: str, shuffle: bool, loop: bool, paused: bool):
 
 
 def lyrics_window(song_path):
-    print("[Spotipy] Not yet implemented.")
+    print("[SpotiPy] Not yet implemented.")
     return
 
 
@@ -647,10 +670,10 @@ def choice_input_window(
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     running = False
-                elif event.key == pygame.K_0:
+                elif event.key == pygame.K_1:
                     ans = opt1
                     running = False
-                elif event.key == pygame.K_1:
+                elif event.key == pygame.K_2:
                     ans = opt2
                     running = False
             if event.type == pygame.QUIT:
@@ -671,11 +694,17 @@ if __name__ == "__main__":
 
     pygame.init()
 
+    try:
+        files = os.listdir("songs/")
+    except:
+        download_default_song()
     files = os.listdir("songs/")
+    if (len(files)) == 0:
+        download_default_song()
     files.sort()
-    print("[Spotipy] \nSongs:")
+    print("[SpotiPy] \nSongs:")
     for file in files:
-        print("[Spotipy]", file)
+        print("[SpotiPy]", file)
     print()
     start_song = os.path.join("songs/", files[random.randint(0, len(files) - 1)])
     song_window(start_song, False, False, False)
