@@ -31,8 +31,7 @@ def download_song_from_querry(query) -> None:
     search = pytube.Search(query)
     video = search.results[0]
     print("[SpotiPy] First result from querry:", video.watch_url)
-    download_song_from_url(video.watch_url)
-    return
+    return download_song_from_url(video.watch_url)
 
 
 def download_song_from_url(url) -> None:
@@ -43,6 +42,7 @@ def download_song_from_url(url) -> None:
 
     songs_path = "songs/"
     song_name = video.title.replace("/", "-")
+    song_name = song_name.replace('"', "'")
     print("[SpotiPy]", song_name)
     folder_path = os.path.join(songs_path, song_name)
     if not os.path.exists(folder_path):
@@ -58,7 +58,7 @@ def download_song_from_url(url) -> None:
         download_lyrics()
     else:
         print("[SpotiPy] Song already exists.")
-    return
+    return folder_path
 
 
 def download_thumbnail(url, path):
@@ -295,10 +295,9 @@ def add_song():
         print("[SpotiPy] Download cancelled")
         return
     if input.startswith(prefix):
-        download_song_from_url(input)
+        return download_song_from_url(input)
     else:
-        download_song_from_querry(input)
-    return
+        return download_song_from_querry(input)
 
 
 def delete_song(song_path):
@@ -437,7 +436,14 @@ def song_window(song_path: str, shuffle: bool, loop: bool, paused: bool):
                         print("[SpotiPy] Search cleared")
                 # add song
                 if event.key == pygame.K_a or event.key == pygame.K_PLUS:
-                    add_song()
+                    new_song = add_song()
+                    if new_song:
+                        global stamp_sec
+                        stamp_sec = 0
+                        song_path = new_song
+                        thumbnail = load_thumbnail(song_path)
+                        title = os.path.basename(song_path)
+                        play_song(song_path, paused)
                     shuffle_pl()
                     pygame.display.set_caption(caption)
                 # delete song
